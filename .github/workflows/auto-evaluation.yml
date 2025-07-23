@@ -1,319 +1,453 @@
-name: 🤖 Évaluation Automatique via API Codespace
+name: 🔍 Évaluation Technique Automatique
 
 on:
   push:
-    branches: [ main, master ]
-    paths-ignore: 
-      - 'FEEDBACK.md'
+    branches: [main, master]
+    paths: ["*.html", "*.css", "*.js"]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+    paths: ["*.html", "*.css", "*.js"]
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  evaluate:
+  evaluation:
+    name: 📊 Analyse et Feedback HTML/CSS
     runs-on: ubuntu-latest
-    name: 📝 Évaluation du Code
-    
+
     steps:
-    - name: 🔄 Checkout Repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - name: 📥 Checkout du Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-    - name: 📋 Configure Evaluation
-      id: config
-      run: |
-        echo "competence=${{ vars.COMPETENCE || 'Développement Web' }}" >> $GITHUB_OUTPUT
-        echo "bareme=${{ vars.BAREME || 'Code fonctionnel (10pts), Bonnes pratiques (10pts)' }}" >> $GITHUB_OUTPUT
-        echo "files_to_analyze=${{ vars.FILES_TO_ANALYZE || 'index.html,style.css,script.js' }}" >> $GITHUB_OUTPUT
-        echo "niveau=${{ vars.NIVEAU || 'debutant' }}" >> $GITHUB_OUTPUT
+      - name: ⚙️ Configuration des Variables
+        id: config
+        run: |
+          echo "🔧 Chargement de la configuration..."
 
-    - name: 🤖 Évaluation via API Codespace
-      env:
-        REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
-        API_URL: "https://bug-free-tribble-p5wxwq549w6365j5-3000.app.github.dev"
-      run: |
-        echo "🔍 Test de connexion à l'API..."
-        curl -s "$API_URL/health" && echo "✅ API accessible" || echo "❌ API inaccessible"
-        
-        echo "📊 Lancement de l'évaluation..."
-        
-        # Conversion de la liste des fichiers
-        FILES_JSON=$(echo "${{ steps.config.outputs.files_to_analyze }}" | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')
-        
-        # Appel de l'API d'évaluation
-        RESPONSE=$(curl -s -X POST "$API_URL/evaluate" \
-          -H "Content-Type: application/json" \
-          -d "{
-            \"repositoryUrl\": \"$REPOSITORY_URL\",
-            \"competence\": \"${{ steps.config.outputs.competence }}\",
-            \"bareme\": \"${{ steps.config.outputs.bareme }}\",
-            \"filesToAnalyze\": [$FILES_JSON],
-            \"niveau\": \"${{ steps.config.outputs.niveau }}\"
-          }")
-        
-        echo "📋 Réponse de l'API:"
-        echo "$RESPONSE"
-        
-        # Vérifier si l'évaluation a réussi
-        if echo "$RESPONSE" | grep -q '"success":true'; then
-          echo "✅ Évaluation réussie"
-          echo "EVALUATION_SUCCESS=true" >> $GITHUB_ENV
-          
-          # Extraire le score si disponible
-          SCORE=$(echo "$RESPONSE" | grep -o '"score":[0-9]*' | cut -d: -f2)
-          if [ ! -z "$SCORE" ]; then
-            echo "SCORE=$SCORE" >> $GITHUB_ENV
+          # Charger la configuration depuis le fichier .evaluation-config
+          if [ -f ".evaluation-config" ]; then
+            echo "📄 Configuration trouvée dans .evaluation-config"
+            source .evaluation-config
           fi
-        else
-          echo "⚠️ Problème lors de l'évaluation, génération d'un feedback par défaut"
-          echo "EVALUATION_SUCCESS=false" >> $GITHUB_ENV
-        fi
 
-    - name: 📝 Generate Feedback File
-      run: |
-        echo "📝 Génération du fichier FEEDBACK.md..."
-        
-        if [ "$EVALUATION_SUCCESS" = "true" ]; then
-          SCORE_TEXT="${SCORE:-14}/20"
-          STATUS_EMOJI="✅"
-          MAIN_MESSAGE="Évaluation automatique réussie !"
-        else
-          SCORE_TEXT="14/20"
-          STATUS_EMOJI="⚠️"
-          MAIN_MESSAGE="Évaluation en mode de secours"
-        fi
-        
-        cat > FEEDBACK.md << EOF
-        # � Feedback Automatique
+          # Utiliser les variables GitHub si définies, sinon utiliser le fichier config, sinon valeurs par défaut
+          COMPETENCE="${{ vars.COMPETENCE }}"
+          [ -z "$COMPETENCE" ] && COMPETENCE="${COMPETENCE:-Développement Web HTML/CSS}"
 
-        > **Évaluation générée automatiquement le $(date +'%d %B %Y à %H:%M')**
+          BAREME="${{ vars.BAREME }}"
+          [ -z "$BAREME" ] && BAREME="${BAREME:-Structure HTML (10pts), Style CSS (10pts)}"
 
-        ## 👤 Informations
-        - **Repository:** ${{ github.repository }}
-        - **Compétence évaluée:** ${{ steps.config.outputs.competence }}
-        - **Niveau:** ${{ steps.config.outputs.niveau }}
-        - **Status:** $STATUS_EMOJI $MAIN_MESSAGE
+          FILES_TO_ANALYZE="${{ vars.FILES_TO_ANALYZE }}"
+          [ -z "$FILES_TO_ANALYZE" ] && FILES_TO_ANALYZE="${FILES_TO_ANALYZE:-index.html,style.css}"
 
-        ---
+          NIVEAU="${{ vars.NIVEAU }}"
+          [ -z "$NIVEAU" ] && NIVEAU="${NIVEAU:-Débutant}"
 
-        ## 📊 Résultat Global
+          # Chargement des scores maximum par composant
+          HTML_MAX_SCORE="${{ vars.HTML_MAX_SCORE }}"
+          [ -z "$HTML_MAX_SCORE" ] && HTML_MAX_SCORE="${HTML_MAX_SCORE:-10}"
 
-        ### Note: $SCORE_TEXT 👍
+          CSS_MAX_SCORE="${{ vars.CSS_MAX_SCORE }}"
+          [ -z "$CSS_MAX_SCORE" ] && CSS_MAX_SCORE="${CSS_MAX_SCORE:-10}"
 
-        Bon travail ! Votre code a été soumis et analysé automatiquement.
+          JS_MAX_SCORE="${{ vars.JS_MAX_SCORE }}"
+          [ -z "$JS_MAX_SCORE" ] && JS_MAX_SCORE="${JS_MAX_SCORE:-0}"
 
-        ### Résumé
-        Code analysé selon les critères définis pour "${{ steps.config.outputs.competence }}". L'évaluation automatique a été effectuée avec succès.
+          TOTAL_MAX_SCORE="${{ vars.TOTAL_MAX_SCORE }}"
+          [ -z "$TOTAL_MAX_SCORE" ] && TOTAL_MAX_SCORE="${TOTAL_MAX_SCORE:-20}"
 
-        ---
+          # Chargement des seuils de réussite
+          EXCELLENT_THRESHOLD="${{ vars.EXCELLENT_THRESHOLD }}"
+          [ -z "$EXCELLENT_THRESHOLD" ] && EXCELLENT_THRESHOLD="${EXCELLENT_THRESHOLD:-80}"
 
-        ## ✅ Points Positifs
+          GOOD_THRESHOLD="${{ vars.GOOD_THRESHOLD }}"
+          [ -z "$GOOD_THRESHOLD" ] && GOOD_THRESHOLD="${GOOD_THRESHOLD:-60}"
 
-        - 💪 Code soumis et structuré
-        - 📁 Organisation du projet respectée
-        - 🔄 Utilisation correcte de Git et GitHub
-        - 🎯 Respect du workflow demandé
-        - 📝 Fichiers analysés présents
+          echo "competence=$COMPETENCE" >> $GITHUB_OUTPUT
+          echo "bareme=$BAREME" >> $GITHUB_OUTPUT
+          echo "files_to_analyze=$FILES_TO_ANALYZE" >> $GITHUB_OUTPUT
+          echo "niveau=$NIVEAU" >> $GITHUB_OUTPUT
+          echo "html_max_score=$HTML_MAX_SCORE" >> $GITHUB_OUTPUT
+          echo "css_max_score=$CSS_MAX_SCORE" >> $GITHUB_OUTPUT
+          echo "js_max_score=$JS_MAX_SCORE" >> $GITHUB_OUTPUT
+          echo "total_max_score=$TOTAL_MAX_SCORE" >> $GITHUB_OUTPUT
+          echo "excellent_threshold=$EXCELLENT_THRESHOLD" >> $GITHUB_OUTPUT
+          echo "good_threshold=$GOOD_THRESHOLD" >> $GITHUB_OUTPUT
 
-        ---
+          echo "✅ Configuration chargée:"
+          echo "- Compétence: $COMPETENCE"
+          echo "- Barème: $BAREME"
+          echo "- Fichiers: $FILES_TO_ANALYZE"
+          echo "- Niveau: $NIVEAU"
 
-        ## 🔧 Points à Vérifier
+      - name: 🔍 Validation HTML avec W3C
+        id: html_validation
+        run: |
+          echo "🔍 Validation HTML avec W3C Validator..."
 
-        - 📖 Conformité avec les consignes détaillées
-        - 🎨 Qualité de la présentation et du style
-        - 📝 Ajout de commentaires explicatifs
-        - 🧪 Tests et validation du code
-        - 🚀 Optimisation des performances
+          # Recherche du fichier HTML principal
+          HTML_FILE=""
+          if [ -f "index.html" ]; then
+            HTML_FILE="index.html"
+          elif [ -f "main.html" ]; then
+            HTML_FILE="main.html"
+          else
+            HTML_FILE=$(find . -name "*.html" -type f | head -1)
+          fi
 
-        ---
+          if [ -z "$HTML_FILE" ]; then
+            echo "❌ Aucun fichier HTML trouvé"
+            echo "HTML_SCORE=0" >> $GITHUB_OUTPUT
+            echo "ERROR_COUNT=999" >> $GITHUB_OUTPUT
+            echo "HTML_ERRORS=Aucun fichier HTML trouvé dans le projet" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
-        ## 💡 Conseils pour Progresser
+          echo "📄 Validation du fichier: $HTML_FILE"
 
-        - 📚 Réviser régulièrement les concepts fondamentaux
-        - 🔍 Analyser des exemples de code de qualité
-        - 💬 N'hésiter pas à demander de l'aide au formateur
-        - 🧪 Tester le code dans différents scenarios
-        - 📖 Consulter la documentation officielle
-
-        ---
-
-        ## 📚 Ressources Recommandées
-
-        - 📖 [MDN Web Docs](https://developer.mozilla.org/fr/) - Documentation complète
-        - 🎓 [freeCodeCamp](https://www.freecodecamp.org/) - Cours gratuits
-        - 💻 [W3Schools](https://www.w3schools.com/) - Tutoriels pratiques
-        - 🚀 [Frontend Mentor](https://www.frontendmentor.io/) - Projets réels
-        - 🎮 [CSS-Tricks](https://css-tricks.com/) - Astuces CSS
-
-        ---
-
-        ## 🤖 À Propos de cette Évaluation
-
-        Cette évaluation automatique analyse votre code selon les critères définis.
-
-        **Configuration utilisée:**
-        - **Compétence:** ${{ steps.config.outputs.competence }}
-        - **Barème:** ${{ steps.config.outputs.bareme }}
-        - **Fichiers analysés:** ${{ steps.config.outputs.files_to_analyze }}
-        - **Niveau:** ${{ steps.config.outputs.niveau }}
-
-        ### Prochaines Étapes
-        1. 📖 Examiner attentivement les commentaires
-        2. 🔄 Implémenter les suggestions d'amélioration
-        3. 💬 Discuter avec le formateur si nécessaire
-        4. 🚀 Continuer à pratiquer et expérimenter
-
-        ---
-
-        *💡 Cette évaluation vous aide à identifier vos points forts et axes d'amélioration. Utilisez ces retours pour progresser !*
-
-        ---
-
-        <sub>🔄 Généré le: $(date +'%d/%m/%Y %H:%M') | 🤖 Système d'évaluation automatique | 🌐 Powered by GitHub Codespaces</sub>
-        EOF
-        
-        echo "✅ Fichier FEEDBACK.md créé avec succès"
-
-    - name: 📤 Commit Feedback
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        if [ -f "FEEDBACK.md" ]; then
-          # Vérifier si le fichier a vraiment du contenu et s'il y a des changements
-          if [ -s "FEEDBACK.md" ]; then
-            git add FEEDBACK.md
+          # Validation via W3C (avec curl et retry)
+          VALIDATION_RESULT=""
+          for attempt in {1..3}; do
+            echo "🔄 Tentative $attempt de validation W3C..."
             
-            # Vérifier s'il y a des changements à committer
-            if git diff --staged --quiet; then
-              echo "ℹ️ Aucun changement détecté dans FEEDBACK.md"
-            else
-              git commit -m "🤖 Feedback automatique - ${{ steps.config.outputs.competence }}
+            VALIDATION_RESULT=$(curl -s -F "uploaded_file=@$HTML_FILE" \
+              -F "output=json" \
+              "https://validator.w3.org/nu/" 2>/dev/null || echo "error")
+            
+            if [ "$VALIDATION_RESULT" != "error" ] && [ -n "$VALIDATION_RESULT" ]; then
+              break
+            fi
+            
+            echo "⚠️ Échec tentative $attempt, retry dans 3s..."
+            sleep 3
+          done
 
-              Évaluation générée automatiquement via GitHub Actions
-              Compétence: ${{ steps.config.outputs.competence }}
-              Niveau: ${{ steps.config.outputs.niveau }}
+          # Traitement des résultats
+          if [ "$VALIDATION_RESULT" = "error" ] || [ -z "$VALIDATION_RESULT" ]; then
+            echo "⚠️ Erreur de connexion W3C, validation locale basique..."
+            
+            # Validation basique locale
+            BASIC_ERRORS=""
+            
+            # Vérifier DOCTYPE
+            if ! grep -qi "<!DOCTYPE html>" "$HTML_FILE"; then
+              BASIC_ERRORS="${BASIC_ERRORS}❌ DOCTYPE manquant\n"
+            fi
+            
+            # Vérifier lang
+            if ! grep -qi 'lang=' "$HTML_FILE"; then
+              BASIC_ERRORS="${BASIC_ERRORS}❌ Attribut lang manquant sur <html>\n"
+            fi
+            
+            # Vérifier structure de base
+            if ! grep -qi '<title>' "$HTML_FILE"; then
+              BASIC_ERRORS="${BASIC_ERRORS}❌ Balise <title> manquante\n"
+            fi
+            
+            if [ -n "$BASIC_ERRORS" ]; then
+              ERROR_COUNT=$(echo -e "$BASIC_ERRORS" | wc -l)
+              HTML_MAX="${{ steps.config.outputs.html_max_score }}"
+              HTML_SCORE=$((HTML_MAX - ERROR_COUNT))
+              [ $HTML_SCORE -lt 0 ] && HTML_SCORE=0
               
-              Généré le: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-              
-              # Push avec retry
-              for i in {1..3}; do
-                if git push; then
-                  echo "✅ Feedback publié avec succès"
-                  break
-                else
-                  echo "⚠️ Tentative $i/3 échouée, nouvelle tentative..."
-                  git pull --rebase
-                  sleep 2
-                fi
-              done
+              echo "ERROR_COUNT=$ERROR_COUNT" >> $GITHUB_OUTPUT
+              echo "HTML_SCORE=$HTML_SCORE" >> $GITHUB_OUTPUT
+              echo -e "HTML_ERRORS=$BASIC_ERRORS" >> $GITHUB_OUTPUT
+            else
+              echo "ERROR_COUNT=0" >> $GITHUB_OUTPUT
+              echo "HTML_SCORE=${{ steps.config.outputs.html_max_score }}" >> $GITHUB_OUTPUT
+              echo "HTML_ERRORS=" >> $GITHUB_OUTPUT
             fi
           else
-            echo "⚠️ Le fichier FEEDBACK.md est vide"
+            # Traitement du JSON W3C
+            echo "$VALIDATION_RESULT" > validation_result.json
+            
+            ERROR_COUNT=$(echo "$VALIDATION_RESULT" | jq -r '.messages | map(select(.type == "error")) | length' 2>/dev/null || echo "0")
+            
+            if [ "$ERROR_COUNT" = "" ] || [ "$ERROR_COUNT" = "null" ]; then
+              ERROR_COUNT=0
+            fi
+            
+            # Calcul du score HTML avec score maximum dynamique
+            HTML_MAX="${{ steps.config.outputs.html_max_score }}"
+            HTML_SCORE=$((HTML_MAX - ERROR_COUNT))
+            [ $HTML_SCORE -lt 0 ] && HTML_SCORE=0
+            
+            # Extraction des erreurs
+            if [ "$ERROR_COUNT" -gt 0 ]; then
+              HTML_ERRORS=$(echo "$VALIDATION_RESULT" | jq -r '.messages | map(select(.type == "error")) | .[0:5] | .[] | "❌ Ligne \(.lastLine // "?"): \(.message)"' 2>/dev/null | head -5 || echo "Erreurs de validation détectées")
+            else
+              HTML_ERRORS=""
+            fi
+            
+            echo "ERROR_COUNT=$ERROR_COUNT" >> $GITHUB_OUTPUT
+            echo "HTML_SCORE=$HTML_SCORE" >> $GITHUB_OUTPUT
+            echo "HTML_ERRORS<<EOF" >> $GITHUB_OUTPUT
+            echo "$HTML_ERRORS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
           fi
-        else
-          echo "❌ Le fichier FEEDBACK.md n'a pas été créé"
-        fi
 
-    - name: 💬 Comment on PR
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          let feedbackContent = 'Génération du feedback en cours...';
-          
-          try {
-            feedbackContent = fs.readFileSync('FEEDBACK.md', 'utf8');
-            if (feedbackContent.length > 1500) {
-              feedbackContent = feedbackContent.substring(0, 1500) + '\\n\\n...\\n\\n📄 **Consultez le fichier FEEDBACK.md pour le rapport complet**';
-            }
-          } catch (error) {
-            console.log('Pas de feedback trouvé:', error);
-          }
-          
-          await github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: '## 🤖 Évaluation Automatique\\n\\n' + feedbackContent + '\\n\\n---\\n*🌐 Évaluation automatique via GitHub Actions & Codespace*'
-          });
+          echo "✅ Validation HTML terminée - Score: $HTML_SCORE/10 (Erreurs: $ERROR_COUNT)"
 
-    - name: 📊 Job Summary
-      if: always()
-      run: |
-        echo "## 📋 Résumé de l'Évaluation Automatique" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| Paramètre | Valeur |" >> $GITHUB_STEP_SUMMARY
-        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-        echo "| **Repository** | \`${{ github.repository }}\` |" >> $GITHUB_STEP_SUMMARY
-        echo "| **Compétence** | ${{ steps.config.outputs.competence }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| **Niveau** | ${{ steps.config.outputs.niveau }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| **API Status** | ${{ env.EVALUATION_SUCCESS == 'true' && '✅ Connectée' || '⚠️ Fallback utilisé' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        if [ -f "FEEDBACK.md" ]; then
-          echo "✅ **Status:** Feedback généré avec succès" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ **Status:** Problème lors de la génération" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "---" >> $GITHUB_STEP_SUMMARY
-        echo "📅 **Généré le:** $(date)" >> $GITHUB_STEP_SUMMARY
+      - name: 🎨 Analyse CSS Avancée et Contextualisée
+        id: css_validation
+        run: |
+          echo "🎨 Analyse détaillée des critères CSS selon le barème..."
 
-    - name: 💬 Comment on PR
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          // Lire le contenu du feedback s'il existe
-          const fs = require('fs');
-          let feedbackContent = '';
-          
-          try {
-            feedbackContent = fs.readFileSync('FEEDBACK.md', 'utf8');
-          } catch (error) {
-            feedbackContent = '⚠️ Le feedback automatique n\'a pas pu être généré. Veuillez vérifier la configuration.';
-          }
-          
-          // Créer un commentaire sur la PR
-          const comment = `## 🤖 Évaluation Automatique
-          
-          ${feedbackContent.substring(0, 2000)}...
-          
-          📄 **Voir le fichier FEEDBACK.md complet pour tous les détails**
-          
-          ---
-          *Évaluation générée automatiquement par GitHub Actions*`;
-          
-          await github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: comment
-          });
+          # Recherche du fichier CSS principal
+          CSS_FILE=""
+          if [ -f "style.css" ]; then
+            CSS_FILE="style.css"
+          elif [ -f "styles.css" ]; then
+            CSS_FILE="styles.css"
+          elif [ -f "main.css" ]; then
+            CSS_FILE="main.css"
+          else
+            CSS_FILE=$(find . -name "*.css" -type f | head -1)
+          fi
 
-    - name: 📊 Summary
-      if: always()
-      run: |
-        echo "## 📋 Résumé de l'Évaluation" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "- **Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Compétence évaluée:** ${{ steps.config.outputs.competence }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Niveau:** ${{ steps.config.outputs.niveau }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Fichiers analysés:** ${{ steps.config.outputs.files_to_analyze }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        if [ -f "FEEDBACK.md" ]; then
-          echo "✅ **Status:** Évaluation terminée avec succès" >> $GITHUB_STEP_SUMMARY
-          echo "📝 **Feedback:** Disponible dans le fichier FEEDBACK.md" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ **Status:** Erreur lors de l'évaluation" >> $GITHUB_STEP_SUMMARY
-          echo "🔧 **Action:** Vérifier la configuration et les logs" >> $GITHUB_STEP_SUMMARY
-        fi
+          if [ -z "$CSS_FILE" ]; then
+            echo "❌ Aucun fichier CSS trouvé"
+            echo "CSS_SCORE=0" >> $GITHUB_OUTPUT
+            echo "CSS_ERRORS=Aucun fichier CSS trouvé dans le projet" >> $GITHUB_OUTPUT
+            echo "STRUCTURE_SCORE=0" >> $GITHUB_OUTPUT
+            echo "TYPOGRAPHY_SCORE=0" >> $GITHUB_OUTPUT
+            echo "PRACTICES_SCORE=0" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "📄 Analyse contextuelle du fichier: $CSS_FILE"
+
+          # Variables pour les scores par critère (sur 3 points chacun)
+          STRUCTURE_SCORE=3
+          TYPOGRAPHY_SCORE=3
+          PRACTICES_SCORE=3
+          CSS_ERRORS=""
+
+          # ==============================================
+          # CRITÈRE 1: Structure et Organisation du CSS (3 points)
+          # ==============================================
+          echo "🔍 Critère 1: Analyse Structure et Organisation..."
+
+          # Vérification des variables CSS
+          CSS_VARIABLES=$(grep -c '^[[:space:]]*--[a-zA-Z]' "$CSS_FILE" 2>/dev/null || echo "0")
+          if [ "$CSS_VARIABLES" -eq 0 ]; then
+            STRUCTURE_SCORE=$((STRUCTURE_SCORE - 1))
+            CSS_ERRORS="${CSS_ERRORS}❌ **Structure**: Aucune variable CSS détectée (--custom-property)\n"
+          fi
+
+          # Vérification des commentaires organisationnels
+          CSS_COMMENTS=$(grep -c '/\*.*\*/' "$CSS_FILE" 2>/dev/null || echo "0")
+          if [ "$CSS_COMMENTS" -lt 3 ]; then
+            STRUCTURE_SCORE=$((STRUCTURE_SCORE - 1))
+            CSS_ERRORS="${CSS_ERRORS}❌ **Structure**: Manque de commentaires organisationnels (moins de 3)\n"
+          fi
+
+          # Vérification de la longueur des sélecteurs (complexité)
+          LONG_SELECTORS=$(grep -c '.*{' "$CSS_FILE" | awk '{if($1>0) print $1}')
+          COMPLEX_SELECTORS=$(grep -E '.* .* .* .*{' "$CSS_FILE" | wc -l)
+          if [ "$COMPLEX_SELECTORS" -gt 5 ]; then
+            STRUCTURE_SCORE=$((STRUCTURE_SCORE - 1))
+            CSS_ERRORS="${CSS_ERRORS}⚠️ **Structure**: Sélecteurs trop complexes détectés ($COMPLEX_SELECTORS occurrences)\n"
+          fi
+
+          # ==============================================
+          # CRITÈRE 2: Typographie et Couleurs (3 points)
+          # ==============================================
+          echo "🔍 Critère 2: Analyse Typographie et Couleurs..."
+
+          # Vérification des unités relatives vs absolues
+          PX_UNITS=$(grep -o '[0-9][0-9]*px' "$CSS_FILE" | wc -l)
+          REL_UNITS=$(grep -o '[0-9]*\.\?[0-9]*\(rem\|em\|%\|vh\|vw\)' "$CSS_FILE" | wc -l)
+
+          if [ "$PX_UNITS" -gt "$REL_UNITS" ]; then
+            TYPOGRAPHY_SCORE=$((TYPOGRAPHY_SCORE - 1))
+            CSS_ERRORS="${CSS_ERRORS}❌ **Typographie**: Utilisation excessive d'unités fixes (${PX_UNITS} px vs ${REL_UNITS} unités relatives)\n"
+          fi
+
+          # Vérification des propriétés typographiques
+          FONT_PROPERTIES=$(grep -c 'font-\|line-height\|letter-spacing' "$CSS_FILE" 2>/dev/null || echo "0")
+          if [ "$FONT_PROPERTIES" -lt 3 ]; then
+            TYPOGRAPHY_SCORE=$((TYPOGRAPHY_SCORE - 1))
+            CSS_ERRORS="${CSS_ERRORS}⚠️ **Typographie**: Propriétés typographiques insuffisantes ($FONT_PROPERTIES détectées)\n"
+          fi
+
+          # Vérification de la cohérence des couleurs (hexadécimal vs noms)
+          HEX_COLORS=$(grep -o '#[0-9a-fA-F]\{3,6\}' "$CSS_FILE" | wc -l)
+          if [ "$HEX_COLORS" -lt 2 ]; then
+            TYPOGRAPHY_SCORE=$((TYPOGRAPHY_SCORE - 1))
+            CSS_ERRORS="${CSS_ERRORS}⚠️ **Couleurs**: Peu de couleurs hexadécimales utilisées ($HEX_COLORS)\n"
+          fi
+
+          # ==============================================
+          # CRITÈRE 3: Bonnes Pratiques CSS (3 points)
+          # ==============================================
+          echo "🔍 Critère 3: Analyse Bonnes Pratiques..."
+
+          # Vérification des classes réutilisables
+          CLASSES=$(grep -o '\.[a-zA-Z][a-zA-Z0-9_-]*' "$CSS_FILE" | sort | uniq | wc -l)
+          if [ "$CLASSES" -lt 5 ]; then
+            PRACTICES_SCORE=$((PRACTICES_SCORE - 1))
+            CSS_ERRORS="${CSS_ERRORS}⚠️ **Pratiques**: Peu de classes CSS définies ($CLASSES classes)\n"
+          fi
+
+          # Vérification des pseudo-classes
+          PSEUDO_CLASSES=$(grep -c ':hover\|:focus\|:active\|:nth-child\|:first-child\|:last-child' "$CSS_FILE" 2>/dev/null || echo "0")
+          if [ "$PSEUDO_CLASSES" -lt 2 ]; then
+            PRACTICES_SCORE=$((PRACTICES_SCORE - 1))
+            CSS_ERRORS="${CSS_ERRORS}❌ **Pratiques**: Pseudo-classes insuffisantes ($PSEUDO_CLASSES détectées)\n"
+          fi
+
+          # Vérification de la séparation des styles (pas de styles inline détectés)
+          HTML_FILE=""
+          if [ -f "index.html" ]; then
+            HTML_FILE="index.html"
+          fi
+
+          if [ -n "$HTML_FILE" ]; then
+            INLINE_STYLES=$(grep -c 'style=' "$HTML_FILE" 2>/dev/null || echo "0")
+            if [ "$INLINE_STYLES" -gt 0 ]; then
+              PRACTICES_SCORE=$((PRACTICES_SCORE - 1))
+              CSS_ERRORS="${CSS_ERRORS}❌ **Pratiques**: Styles inline détectés dans HTML ($INLINE_STYLES occurrences)\n"
+            fi
+          fi
+
+          # Calcul du score CSS total (Structure + Typographie + Pratiques)
+          CSS_TOTAL_SCORE=$((STRUCTURE_SCORE + TYPOGRAPHY_SCORE + PRACTICES_SCORE))
+
+          # Limitation des scores négatifs
+          [ $STRUCTURE_SCORE -lt 0 ] && STRUCTURE_SCORE=0
+          [ $TYPOGRAPHY_SCORE -lt 0 ] && TYPOGRAPHY_SCORE=0
+          [ $PRACTICES_SCORE -lt 0 ] && PRACTICES_SCORE=0
+          [ $CSS_TOTAL_SCORE -lt 0 ] && CSS_TOTAL_SCORE=0
+
+          # Sortie des résultats
+          echo "CSS_SCORE=$CSS_TOTAL_SCORE" >> $GITHUB_OUTPUT
+          echo "STRUCTURE_SCORE=$STRUCTURE_SCORE" >> $GITHUB_OUTPUT
+          echo "TYPOGRAPHY_SCORE=$TYPOGRAPHY_SCORE" >> $GITHUB_OUTPUT  
+          echo "PRACTICES_SCORE=$PRACTICES_SCORE" >> $GITHUB_OUTPUT
+
+          if [ -n "$CSS_ERRORS" ]; then
+            echo "CSS_ERRORS<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$CSS_ERRORS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "CSS_ERRORS=" >> $GITHUB_OUTPUT
+          fi
+
+          echo "✅ Analyse CSS contextuelle terminée:"
+          echo "   - Structure et Organisation: $STRUCTURE_SCORE/3"
+          echo "   - Typographie et Couleurs: $TYPOGRAPHY_SCORE/3"
+          echo "   - Bonnes Pratiques: $PRACTICES_SCORE/3"
+          echo "   - Score CSS Total: $CSS_TOTAL_SCORE/9"
+
+      - name: 📝 Génération du Feedback Technique
+        id: generate_feedback
+        env:
+          HTML_SCORE: ${{ steps.html_validation.outputs.HTML_SCORE }}
+          CSS_SCORE: ${{ steps.css_validation.outputs.CSS_SCORE }}
+          ERROR_COUNT: ${{ steps.html_validation.outputs.ERROR_COUNT }}
+          HTML_ERRORS: ${{ steps.html_validation.outputs.HTML_ERRORS }}
+          CSS_ERRORS: ${{ steps.css_validation.outputs.CSS_ERRORS }}
+          COMPETENCE: ${{ steps.config.outputs.competence }}
+          BAREME: ${{ steps.config.outputs.bareme }}
+          FILES: ${{ steps.config.outputs.files_to_analyze }}
+          REPOSITORY: ${{ github.repository }}
+          HTML_MAX_SCORE: ${{ steps.config.outputs.html_max_score }}
+          CSS_MAX_SCORE: ${{ steps.config.outputs.css_max_score }}
+          TOTAL_MAX_SCORE: ${{ steps.config.outputs.total_max_score }}
+          EXCELLENT_THRESHOLD: ${{ steps.config.outputs.excellent_threshold }}
+          GOOD_THRESHOLD: ${{ steps.config.outputs.good_threshold }}
+          # Scores détaillés par critère CSS
+          STRUCTURE_SCORE: ${{ steps.css_validation.outputs.STRUCTURE_SCORE }}
+          TYPOGRAPHY_SCORE: ${{ steps.css_validation.outputs.TYPOGRAPHY_SCORE }}
+          PRACTICES_SCORE: ${{ steps.css_validation.outputs.PRACTICES_SCORE }}
+          NIVEAU: ${{ steps.config.outputs.niveau }}
+        run: |
+          echo "📝 Génération du feedback technique détaillé..."
+
+          # Calcul du score total
+          TOTAL_SCORE=$((HTML_SCORE + CSS_SCORE))
+          echo "TOTAL_SCORE=$TOTAL_SCORE" >> $GITHUB_OUTPUT
+
+          # Exécuter le générateur Python de feedback
+          python3 .github/scripts/generate_feedback.py
+
+          echo "✅ Fichier FEEDBACK.md technique généré avec succès"
+
+      - name: 📤 Commit et Push du Feedback
+        run: |
+          echo "📝 Configuration Git..."
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          if [ -f "FEEDBACK.md" ] && [ -s "FEEDBACK.md" ]; then
+            echo "✅ Fichier FEEDBACK.md généré ($(wc -l < FEEDBACK.md) lignes)"
+            
+            git add FEEDBACK.md
+            git commit -m "🤖 Mise à jour automatique du feedback d'évaluation technique - HTML: ${{ steps.html_validation.outputs.HTML_SCORE }}/10 - CSS: ${{ steps.css_validation.outputs.CSS_SCORE }}/10 - Score total: ${{ steps.generate_feedback.outputs.TOTAL_SCORE }}/20 - Erreurs: ${{ steps.html_validation.outputs.ERROR_COUNT }}"
+            
+            echo "🚀 Push du feedback..."
+            for attempt in {1..3}; do
+              if git push origin ${{ github.ref_name }}; then
+                echo "✅ Feedback pushé avec succès (tentative $attempt)"
+                break
+              else
+                echo "⚠️ Échec push tentative $attempt, retry dans 5s..."
+                sleep 5
+              fi
+            done
+          else
+            echo "❌ Erreur: Fichier FEEDBACK.md non créé ou vide"
+            exit 1
+          fi
+
+      - name: 💬 Commentaire sur PR (si applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const feedback = fs.readFileSync('FEEDBACK.md', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🔍 Évaluation Technique Automatique
+
+            Votre code a été analysé automatiquement. Consultez le fichier \`FEEDBACK.md\` pour le rapport détaillé.
+
+            ### 📊 Résultats
+            - **HTML**: ${{ steps.html_validation.outputs.HTML_SCORE }}/10 points
+            - **CSS**: ${{ steps.css_validation.outputs.CSS_SCORE }}/10 points
+            - **Score total**: ${{ steps.generate_feedback.outputs.TOTAL_SCORE }}/20 points
+
+            ### 🎯 Actions recommandées
+            ${${{ steps.html_validation.outputs.ERROR_COUNT }} > 0 ? '⚠️ Corriger les erreurs HTML détectées' : '✅ HTML valide'}
+            ${${{ steps.css_validation.outputs.CSS_SCORE }} < 8 ? '⚠️ Améliorer la qualité CSS' : '✅ CSS de bonne qualité'}
+
+            ---
+            *🤖 Analyse automatique via GitHub Actions*`
+            });
+
+      - name: 📊 Résumé de l'Évaluation
+        if: always()
+        run: |
+          echo "## 📋 Résumé de l'Évaluation Technique" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Résultats Finaux" >> $GITHUB_STEP_SUMMARY
+          echo "- **HTML**: ${{ steps.html_validation.outputs.HTML_SCORE }}/10 points" >> $GITHUB_STEP_SUMMARY
+          echo "- **CSS**: ${{ steps.css_validation.outputs.CSS_SCORE }}/10 points" >> $GITHUB_STEP_SUMMARY
+          echo "- **Score Total**: ${{ steps.generate_feedback.outputs.TOTAL_SCORE }}/20 points" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 Analyse" >> $GITHUB_STEP_SUMMARY
+          echo "- Erreurs HTML détectées: ${{ steps.html_validation.outputs.ERROR_COUNT }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Fichier de feedback généré: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📄 **Consultez le fichier \`FEEDBACK.md\` pour l'analyse complète**" >> $GITHUB_STEP_SUMMARY
