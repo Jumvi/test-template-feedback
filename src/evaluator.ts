@@ -59,7 +59,17 @@ export class CodeEvaluator {
   private analyzeCodeInDetail(request: EvaluationRequest): EvaluationResult {
     console.log("[Evaluator] Analyse détaillée du code en cours...");
     
-    let score = 20; // Score parfait au début, on déduit pour les erreurs
+    // Déterminer le score max à partir du barème transmis
+    let scoreMax = 20;
+    if (request.bareme) {
+      // Exemple de barème: "Structure HTML (10pts), Style CSS (10pts)"
+      const matches = request.bareme.match(/(\d+)\s*pts?/gi);
+      if (matches) {
+        scoreMax = matches.map(m => parseInt(m)).reduce((a, b) => a + b, 0);
+      }
+    }
+
+    let score = scoreMax; // Score parfait au début, on déduit pour les erreurs
     const strengths: string[] = [];
     const improvements: string[] = [];
     const recommendations: string[] = [];
@@ -77,12 +87,12 @@ export class CodeEvaluator {
     });
 
     // Ajustement du score final
-    score = Math.min(20, Math.max(0, score));
+    score = Math.min(scoreMax, Math.max(0, score));
 
     // Générer recommandations selon le score
-    this.generateRecommendations(score, recommendations, technicalDetails.length);
+    this.generateRecommendations(score, recommendations, technicalDetails.length, scoreMax);
 
-    const summary = this.generateSummary(score, strengths.length, improvements.length);
+    const summary = this.generateSummary(score, strengths.length, improvements.length, scoreMax);
 
     return {
       score,
@@ -287,13 +297,16 @@ export class CodeEvaluator {
     return score;
   }
 
-  private generateRecommendations(score: number, recommendations: string[], errorsCount: number): void {
-    if (score < 10) {
+  private generateRecommendations(score: number, recommendations: string[], errorsCount: number, scoreMax: number): void {
+    // Adapter les seuils en fonction du score max
+    const seuilFaible = Math.round(0.5 * scoreMax);
+    const seuilMoyen = Math.round(0.75 * scoreMax);
+    if (score < seuilFaible) {
       recommendations.push("📚 Revoir les bases du HTML et CSS - de nombreuses erreurs fondamentales détectées");
       recommendations.push("🔧 Corriger en priorité les erreurs de syntaxe qui empêchent le bon fonctionnement");
       recommendations.push("💡 Demander de l'aide au formateur pour comprendre les concepts de base");
       recommendations.push("📖 Consulter les ressources MDN Web Docs pour les bonnes pratiques");
-    } else if (score < 15) {
+    } else if (score < seuilMoyen) {
       recommendations.push("📖 Approfondir les bonnes pratiques HTML/CSS - bases solides mais perfectibles");
       recommendations.push("🎯 Travailler sur l'accessibilité et la sémantique HTML5");
       recommendations.push("🚀 Explorer les techniques de layout modernes (Flexbox, Grid)");
@@ -310,15 +323,14 @@ export class CodeEvaluator {
     }
   }
 
-  private generateSummary(score: number, strengthsCount: number, improvementsCount: number): string {
-    if (score >= 18) {
+  private generateSummary(score: number, strengthsCount: number, improvementsCount: number, scoreMax: number): string {
+    // Adapter les seuils en fonction du score max
+    const seuilFaible = Math.round(0.5 * scoreMax);
+    const seuilMoyen = Math.round(0.75 * scoreMax);
+    if (score >= seuilMoyen) {
       return `🎉 Excellent travail ! Code de très haute qualité avec ${strengthsCount} points forts identifiés. Très peu d'améliorations nécessaires. Vous maîtrisez bien les concepts fondamentaux.`;
-    } else if (score >= 15) {
-      return `👍 Très bon travail ! Code bien structuré avec ${strengthsCount} points forts. ${improvementsCount} points d'amélioration à considérer pour parfaire votre code.`;
-    } else if (score >= 12) {
-      return `📈 Bon travail ! Base solide avec ${strengthsCount} éléments positifs. ${improvementsCount} améliorations importantes identifiées pour progresser.`;
-    } else if (score >= 8) {
-      return `⚠️ Travail en cours de développement. ${strengthsCount} points positifs mais ${improvementsCount} erreurs importantes nécessitent votre attention.`;
+    } else if (score >= seuilFaible) {
+      return `👍 Bon travail ! Code bien structuré avec ${strengthsCount} points forts. ${improvementsCount} points d'amélioration à considérer pour parfaire votre code.`;
     } else {
       return `🔧 Code nécessitant des corrections majeures. ${improvementsCount} erreurs critiques identifiées. Une révision approfondie des concepts de base est nécessaire.`;
     }
