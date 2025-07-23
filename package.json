@@ -1,0 +1,46 @@
+{
+  "name": "ia-workflow",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "github-classroom-evaluator": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc && chmod +x dist/index.js",
+    "start": "node dist/index.js",
+    "start:web": "node dist/web-server.js",
+    "dev": "tsc --watch",
+    "dev:web": "tsc && node dist/web-server.js",
+    "test:codespace": "node dist/test-mcp.js --config-only",
+    "eval:example": "echo 'Exemple d\\'évaluation - Configurez GITHUB_TOKEN d\\'abord'",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "github-classroom",
+    "education",
+    "automated-feedback"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Serveur MCP pour l'évaluation automatique des exercices GitHub Classroom",
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^24.1.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.16.0",
+    "@octokit/rest": "^22.0.0",
+    "axios": "^1.11.0",
+    "cheerio": "^1.1.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "jsdom": "^26.1.0",
+    "zod": "^3.25.76"
+  }
+}

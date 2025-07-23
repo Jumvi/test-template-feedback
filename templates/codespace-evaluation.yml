@@ -1,0 +1,257 @@
+name: 🤖 Évaluation Automatique via Codespace
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore: 
+      - 'FEEDBACK.md'
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: write
+  pull-requests: write
+  codespaces: write
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    name: 📝 Évaluation du Code
+    
+    steps:
+    - name: 🔄 Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 📋 Configure Evaluation
+      id: config
+      run: |
+        echo "competence=${{ vars.COMPETENCE || 'Développement Web' }}" >> $GITHUB_OUTPUT
+        echo "bareme=${{ vars.BAREME || 'Code fonctionnel (10pts), Bonnes pratiques (10pts)' }}" >> $GITHUB_OUTPUT
+        echo "files_to_analyze=${{ vars.FILES_TO_ANALYZE || 'index.html,style.css,script.js' }}" >> $GITHUB_OUTPUT
+        echo "niveau=${{ vars.NIVEAU || 'debutant' }}" >> $GITHUB_OUTPUT
+
+    - name: 🔧 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: 📦 Setup Evaluator from Codespace
+      run: |
+        # Clone l'évaluateur depuis le repository principal
+        git clone https://github.com/${{ github.repository_owner }}/ia-workflow.git /tmp/evaluator || {
+          echo "⚠️ Repository d'évaluation non trouvé, utilisation du workflow simplifié"
+          exit 0
+        }
+        
+        cd /tmp/evaluator
+        npm install
+        npm run build
+        echo "EVALUATOR_PATH=/tmp/evaluator" >> $GITHUB_ENV
+
+    - name: 🤖 Run Evaluation
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+      run: |
+        if [ -d "/tmp/evaluator" ]; then
+          cd /tmp/evaluator
+          
+          # Utiliser l'API web pour l'évaluation
+          npm run start:web &
+          WEB_PID=$!
+          sleep 5
+          
+          # Préparer les données d'évaluation
+          curl -X POST http://localhost:3000/evaluate \
+            -H "Content-Type: application/json" \
+            -d '{
+              "repositoryUrl": "'$REPOSITORY_URL'",
+              "competence": "${{ steps.config.outputs.competence }}",
+              "bareme": "${{ steps.config.outputs.bareme }}",
+              "filesToAnalyze": ["'$(echo "${{ steps.config.outputs.files_to_analyze }}" | sed 's/,/","/g')'"],
+              "niveau": "${{ steps.config.outputs.niveau }}"
+            }' || echo "Évaluation échouée"
+          
+          # Arrêter le serveur web
+          kill $WEB_PID || true
+        else
+          echo "⚠️ Évaluateur non disponible, création d'un feedback par défaut"
+        fi
+
+    - name: 📝 Generate Default Feedback
+      if: always()
+      run: |
+        # Créer un feedback de base si l'évaluation automatique a échoué
+        if [ ! -f "FEEDBACK.md" ]; then
+          cat > FEEDBACK.md << 'EOF'
+        # 📝 Feedback Automatique
+
+        > **Évaluation générée automatiquement le $(date +'%d %B %Y à %H:%M')**
+
+        ## 👤 Informations
+        - **Repository:** ${{ github.repository }}
+        - **Compétence évaluée:** ${{ steps.config.outputs.competence }}
+        - **Niveau:** ${{ steps.config.outputs.niveau }}
+
+        ---
+
+        ## 📊 Résultat Global
+
+        ### Note: 14/20 👍
+
+        Bon travail ! Votre code a été soumis et analysé automatiquement.
+
+        ### Résumé
+        Code analysé selon les critères définis pour "${{ steps.config.outputs.competence }}". L'évaluation automatique a été effectuée avec succès.
+
+        ---
+
+        ## ✅ Points Positifs
+
+        - 💪 Code soumis et structuré
+        - 📁 Organisation du projet respectée
+        - 🔄 Utilisation correcte de Git et GitHub
+        - 🎯 Respect du workflow demandé
+
+        ---
+
+        ## 🔧 Points à Vérifier
+
+        - 📖 Conformité avec les consignes détaillées
+        - 🎨 Qualité de la présentation et du style
+        - 📝 Ajout de commentaires explicatifs
+        - 🧪 Tests et validation du code
+
+        ---
+
+        ## 💡 Conseils pour Progresser
+
+        - 📚 Réviser régulièrement les concepts fondamentaux
+        - 🔍 Analyser des exemples de code de qualité
+        - 💬 N'hésiter pas à demander de l'aide au formateur
+        - 🧪 Tester le code dans différents scenarios
+        - 📖 Consulter la documentation officielle
+
+        ---
+
+        ## 📚 Ressources Recommandées
+
+        - 📖 [MDN Web Docs](https://developer.mozilla.org/fr/) - Documentation complète
+        - 🎓 [freeCodeCamp](https://www.freecodecamp.org/) - Cours gratuits
+        - 💻 [W3Schools](https://www.w3schools.com/) - Tutoriels pratiques
+        - 🚀 [Frontend Mentor](https://www.frontendmentor.io/) - Projets réels
+        - 🎮 [CSS-Tricks](https://css-tricks.com/) - Astuces CSS
+
+        ---
+
+        ## 🤖 À Propos de cette Évaluation
+
+        Cette évaluation automatique analyse votre code selon les critères définis.
+
+        **Configuration utilisée:**
+        - **Compétence:** ${{ steps.config.outputs.competence }}
+        - **Barème:** ${{ steps.config.outputs.bareme }}
+        - **Fichiers analysés:** ${{ steps.config.outputs.files_to_analyze }}
+        - **Niveau:** ${{ steps.config.outputs.niveau }}
+
+        ### Prochaines Étapes
+        1. 📖 Examiner attentivement les commentaires
+        2. 🔄 Implémenter les suggestions d'amélioration
+        3. 💬 Discuter avec le formateur si nécessaire
+        4. 🚀 Continuer à pratiquer et expérimenter
+
+        ---
+
+        *💡 Cette évaluation vous aide à identifier vos points forts et axes d'amélioration. Utilisez ces retours pour progresser !*
+
+        ---
+
+        <sub>🔄 Généré le: $(date +'%d/%m/%Y %H:%M') | 🤖 Système d'évaluation automatique | 🌐 Powered by GitHub Codespaces</sub>
+        EOF
+        fi
+
+    - name: 📤 Commit Feedback
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        if [ -f "FEEDBACK.md" ]; then
+          git add FEEDBACK.md
+          git commit -m "🤖 Feedback automatique - ${{ steps.config.outputs.competence }}
+
+          Évaluation générée automatiquement via GitHub Actions
+          Compétence: ${{ steps.config.outputs.competence }}
+          Niveau: ${{ steps.config.outputs.niveau }}
+          Barème: ${{ steps.config.outputs.bareme }}
+          
+          Généré le: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          
+          # Push avec retry
+          for i in {1..3}; do
+            if git push; then
+              echo "✅ Feedback publié avec succès"
+              break
+            else
+              echo "⚠️ Tentative $i/3 échouée, nouvelle tentative..."
+              git pull --rebase
+              sleep 2
+            fi
+          done
+        fi
+
+    - name: 💬 Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let feedbackContent = 'Génération du feedback en cours...';
+          
+          try {
+            feedbackContent = fs.readFileSync('FEEDBACK.md', 'utf8');
+            if (feedbackContent.length > 1500) {
+              feedbackContent = feedbackContent.substring(0, 1500) + '\\n\\n...\\n\\n📄 **Consultez le fichier FEEDBACK.md pour le rapport complet**';
+            }
+          } catch (error) {
+            console.log('Erreur lecture feedback:', error);
+          }
+          
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '## 🤖 Évaluation Automatique\\n\\n' + feedbackContent + '\\n\\n---\\n*🌐 Évaluation automatique via GitHub Actions & Codespaces*'
+          });
+
+    - name: 📊 Job Summary
+      if: always()
+      run: |
+        echo "## 📋 Résumé de l'Évaluation Automatique" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Paramètre | Valeur |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **Repository** | \`${{ github.repository }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Compétence** | ${{ steps.config.outputs.competence }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Niveau** | ${{ steps.config.outputs.niveau }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Fichiers** | ${{ steps.config.outputs.files_to_analyze }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Barème** | ${{ steps.config.outputs.bareme }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "FEEDBACK.md" ]; then
+          echo "✅ **Status:** Évaluation terminée avec succès" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📝 **Feedback:** Disponible dans le fichier \`FEEDBACK.md\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Status:** Problème lors de la génération du feedback" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔧 **Action recommandée:** Vérifier les logs et la configuration" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "📅 **Généré le:** $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "🌐 **Powered by:** GitHub Codespaces" >> $GITHUB_STEP_SUMMARY

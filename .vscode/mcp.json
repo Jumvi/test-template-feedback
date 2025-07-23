@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "github-classroom-evaluator": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["dist/index.js"]
+    }
+  }
+}
