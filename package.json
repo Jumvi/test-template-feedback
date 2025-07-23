@@ -2,14 +2,13 @@
   "name": "ia-workflow",
   "version": "1.0.0",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "src/web-server.js",
   "bin": {
     "github-classroom-evaluator": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc && chmod +x dist/index.js",
-    "start": "node dist/index.js",
-    "start:web": "node dist/web-server.js",
+    "start": "node src/web-server.js",
     "dev": "tsc --watch",
     "dev:web": "tsc && node dist/web-server.js",
     "test:codespace": "node dist/test-mcp.js --config-only",

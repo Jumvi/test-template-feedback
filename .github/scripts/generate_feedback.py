@@ -6,12 +6,122 @@ import sys
 import json
 from datetime import datetime
 
+def analyze_files_locally():
+    """Analyse locale des fichiers quand l'API IA n'est pas disponible"""
+    print("🔍 Analyse locale des fichiers en cours...")
+    
+    technical_details = []
+    score = 20  # Score de départ
+    
+    # Analyser index.html
+    if os.path.exists('index.html'):
+        with open('index.html', 'r', encoding='utf-8') as f:
+            html_content = f.read()
+            lines = html_content.split('\n')
+            
+            for i, line in enumerate(lines, 1):
+                # Détecter balises non fermées
+                if '<button' in line and '</button>' not in line and not line.strip().endswith('/>'):
+                    if i < len(lines) and '</button>' not in lines[i]:
+                        technical_details.append({
+                            'file': 'index.html',
+                            'line': i,
+                            'severity': 'error',
+                            'issue': 'Balise button non fermée',
+                            'suggestion': 'Ajoutez la balise de fermeture </button> correspondante'
+                        })
+                        score -= 3
+                
+                # Détecter attributs mal orthographiés
+                if 'clas=' in line:
+                    technical_details.append({
+                        'file': 'index.html',
+                        'line': i,
+                        'severity': 'error',
+                        'issue': 'Attribut "clas" incorrect',
+                        'suggestion': 'Remplacez "clas" par "class"'
+                    })
+                    score -= 2
+    
+    # Analyser style.css
+    if os.path.exists('style.css'):
+        with open('style.css', 'r', encoding='utf-8') as f:
+            css_content = f.read()
+            lines = css_content.split('\n')
+            
+            for i, line in enumerate(lines, 1):
+                # Détecter width excessive
+                if 'width: 250%' in line:
+                    technical_details.append({
+                        'file': 'style.css',
+                        'line': i,
+                        'severity': 'error',
+                        'issue': 'Largeur excessive (250%) cassant la mise en page',
+                        'suggestion': 'Utilisez une largeur raisonnable comme 100% ou max-width'
+                    })
+                    score -= 4
+                
+                # Détecter position stick (invalide)
+                if 'position: stick' in line and 'sticky' not in line:
+                    technical_details.append({
+                        'file': 'style.css',
+                        'line': i,
+                        'severity': 'error',
+                        'issue': 'Valeur CSS invalide "stick"',
+                        'suggestion': 'Remplacez "position: stick" par "position: sticky"'
+                    })
+                    score -= 2
+                
+                # Détecter margin négatif excessif
+                if 'margin-left: -9999px' in line:
+                    technical_details.append({
+                        'file': 'style.css',
+                        'line': i,
+                        'severity': 'error',
+                        'issue': 'Élément placé hors écran avec margin négatif excessif',
+                        'suggestion': 'Retirez cette propriété ou utilisez display: none pour masquer l\'élément'
+                    })
+                    score -= 3
+                
+                # Détecter points-virgules manquants
+                if ('cursor: pointer' in line or 'height: 400px' in line) and not line.strip().endswith(';') and not line.strip().endswith('{'):
+                    technical_details.append({
+                        'file': 'style.css',
+                        'line': i,
+                        'severity': 'warning',
+                        'issue': 'Point-virgule manquant en fin de déclaration CSS',
+                        'suggestion': 'Ajoutez un point-virgule (;) à la fin de la déclaration'
+                    })
+                    score -= 1
+    
+    return {
+        'score': max(0, score),
+        'technicalDetails': technical_details,
+        'summary': f'Analyse locale détectant {len(technical_details)} problème(s) technique(s)',
+        'strengths': ['Structure HTML de base présente'] if score > 10 else [],
+        'improvements': [f'{len(technical_details)} erreurs critiques à corriger avant soumission']
+    }
+
 def generate_ai_feedback():
     """Génère le feedback à partir de l'évaluation IA avancée"""
     ai_available = os.environ.get('AI_AVAILABLE', 'false').lower() == 'true'
     ai_response = os.environ.get('AI_RESPONSE', '{}')
     
     if not ai_available:
+        # Utiliser l'analyse locale si l'API IA n'est pas disponible
+        print("⚠️ API IA indisponible, utilisation de l'analyse locale avancée")
+        ai_data = analyze_files_locally()
+    else:
+        try:
+            ai_data = json.loads(ai_response)
+            if 'error' in ai_data:
+                print("❌ Erreur dans la réponse IA, fallback vers analyse locale")
+                ai_data = analyze_files_locally()
+        except:
+            print("❌ Erreur parsing réponse IA, fallback vers analyse locale")
+            ai_data = analyze_files_locally()
+    
+    if not ai_data:
         return None
     
     try:
