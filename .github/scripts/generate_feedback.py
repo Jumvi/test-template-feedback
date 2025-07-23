@@ -377,18 +377,18 @@ def main():
     validation_analysis = get_criterium_analysis(html_score_int, html_max_score, "Validation et Tests", validation_context)
 
     # Recommandations spécifiques selon les scores
+    def get_recommendations():
+        recommendations = []
+        if structure_score < 3:
             recommendations.append("🔧 **Structure**: Organisez votre CSS avec des variables (`--primary-color`) et des commentaires sections")
-        if typography_score < 2:  
+        if typography_score < 2:
             recommendations.append("📝 **Typographie**: Utilisez des unités relatives (rem, em, %) plutôt que px")
-            
         if practices_score < 2:
             recommendations.append("⚡ **Pratiques**: Créez des classes réutilisables et utilisez les pseudo-classes (:hover, :focus)")
-            
         if html_score_int < 2:
-            
+            recommendations.append("🔴 **Validation HTML**: Corrigez les erreurs W3C pour garantir la compatibilité")
         if not recommendations:
             recommendations.append("🎯 **Optimisation**: Votre code est solide, explorez les techniques avancées (CSS Grid, animations)")
-            
         return recommendations
 
     recommendations = get_recommendations()
