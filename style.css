@@ -82,7 +82,7 @@ body {
 }
 
 .hero-description {
-    font-size: 1.2re;
+    font-size: 1.2rem;
     margin-bottom: 2rem;
     max-width: 600px;
     margin-left: auto;
@@ -92,8 +92,8 @@ body {
 .cta-button {
     background: #ffd700;
     color: #333;
-    border: none;
-    padding: 15px 30px;
+    border: non;
+    padding: 15px 30x;
     font-size: 1.1rem;
     font-weight: bold;
     border-radius: 30px;
