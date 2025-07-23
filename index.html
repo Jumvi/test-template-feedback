@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page de Test - Évaluation Automatique</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="navigation">
+            <h1 class="logo">Mon Site Test</h1>
+            <ul class="nav-links">
+                <li><a href="#accueil">Accueil</a></li>
+                <li><a href="#services">Services</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        <section id="accueil" class="hero-section">
+            <div class="container">
+                <h2 class="hero-title">Bienvenue sur mon site de test</h2>
+                <p class="hero-description">
+                    Cette page sert à tester le système d'évaluation automatique 
+                    pour GitHub Classroom. Elle contient du HTML sémantique et 
+                    du CSS bien structuré.
+                </p>
+                <button class="cta-button" onclick="showMessage()">
+                    Cliquez pour tester
+                </button>
+            </div>
+        </section>
+
+        <section id="services" class="services-section">
+            <div class="container">
+                <h2 class="section-title">Nos Services</h2>
+                <div class="services-grid">
+                    <article class="service-card">
+                        <h3>Développement Web</h3>
+                        <p>Création de sites web modernes et responsives</p>
+                    </article>
+                    <article class="service-card">
+                        <h3>Design UI/UX</h3>
+                        <p>Interface utilisateur intuitive et attractive</p>
+                    </article>
+                    <article class="service-card">
+                        <h3>Évaluation Automatique</h3>
+                        <p>Système intelligent d'évaluation de code</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact" class="contact-section">
+            <div class="container">
+                <h2 class="section-title">Contact</h2>
+                <form class="contact-form">
+                    <div class="form-group">
+                        <label for="name">Nom :</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email :</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="message">Message :</label>
+                        <textarea id="message" name="message" rows="5" required></textarea>
+                    </div>
+                    <button type="submit" class="submit-button">Envoyer</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Test d'Évaluation Automatique. Tous droits réservés.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
