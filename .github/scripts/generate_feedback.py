@@ -377,12 +377,7 @@ def main():
     validation_analysis = get_criterium_analysis(html_score_int, html_max_score, "Validation et Tests", validation_context)
 
     # Recommandations spécifiques selon les scores
-    def get_recommendations():
-        recommendations = []
-        
-        if structure_score < 2:
             recommendations.append("🔧 **Structure**: Organisez votre CSS avec des variables (`--primary-color`) et des commentaires sections")
-        
         if typography_score < 2:  
             recommendations.append("📝 **Typographie**: Utilisez des unités relatives (rem, em, %) plutôt que px")
             
@@ -390,7 +385,6 @@ def main():
             recommendations.append("⚡ **Pratiques**: Créez des classes réutilisables et utilisez les pseudo-classes (:hover, :focus)")
             
         if html_score_int < 2:
-            recommendations.append("✅ **Validation**: Corrigez les erreurs W3C avant de finaliser votre code")
             
         if not recommendations:
             recommendations.append("🎯 **Optimisation**: Votre code est solide, explorez les techniques avancées (CSS Grid, animations)")
@@ -453,17 +447,10 @@ def main():
 
 ### 🏗️ **Critère 1: Structure et Organisation du CSS**
 {structure_analysis}
-
 ### � **Critère 2: Typographie et Couleurs** 
 {typography_analysis}
 
-### ⚡ **Critère 3: Bonnes Pratiques CSS**
-{practices_analysis}
 
-### ✅ **Critère 4: Validation et Tests**
-{validation_analysis}
-
----
 
 ## � Points d'Amélioration Détectés
 
@@ -475,11 +462,9 @@ def main():
 {"#### � **Analyse CSS Contextuelle**" if css_errors else ""}
 {css_errors if css_errors else "✅ **Analyse CSS**: Code respectant les critères du barème"}
 
----
 
 ## � Plan d'Action Personnalisé
 
-### **Recommandations Prioritaires:**
 
 {chr(10).join(f"- {rec}" for rec in recommendations)}
 
