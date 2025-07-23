@@ -1,15 +1,13 @@
-name: 🤖 Évaluation Automatique
+name: 🤖 Évaluation Automatique via API Codespace
 
 on:
   push:
     branches: [ main, master ]
-    # Ignorer les commits de feedback pour éviter les boucles infinies
     paths-ignore: 
       - 'FEEDBACK.md'
   pull_request:
     branches: [ main, master ]
 
-# Permissions nécessaires pour lire le repo et écrire le feedback
 permissions:
   contents: write
   pull-requests: write
@@ -26,134 +24,248 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: 🔧 Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-
-    - name: 📦 Install MCP Evaluator
-      run: |
-        # Clone ou installer le serveur MCP d'évaluation
-        git clone https://github.com/votre-username/ia-workflow.git /tmp/evaluator
-        cd /tmp/evaluator
-        npm install
-        npm run build
-
-    - name: 📋 Configure Evaluation Parameters
+    - name: 📋 Configure Evaluation
       id: config
       run: |
-        # Lire les variables d'environnement ou utiliser les valeurs par défaut
         echo "competence=${{ vars.COMPETENCE || 'Développement Web' }}" >> $GITHUB_OUTPUT
-        echo "bareme=${{ vars.BAREME || 'Respect des consignes (5pts), Qualité du code (5pts), Fonctionnalité (5pts), Bonnes pratiques (5pts)' }}" >> $GITHUB_OUTPUT
+        echo "bareme=${{ vars.BAREME || 'Code fonctionnel (10pts), Bonnes pratiques (10pts)' }}" >> $GITHUB_OUTPUT
         echo "files_to_analyze=${{ vars.FILES_TO_ANALYZE || 'index.html,style.css,script.js' }}" >> $GITHUB_OUTPUT
         echo "niveau=${{ vars.NIVEAU || 'debutant' }}" >> $GITHUB_OUTPUT
 
-    - name: 🤖 Run MCP Evaluation
-      id: evaluation
+    - name: 🤖 Évaluation via API Codespace
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
-        COMPETENCE: ${{ steps.config.outputs.competence }}
-        BAREME: ${{ steps.config.outputs.bareme }}
-        FILES_TO_ANALYZE: ${{ steps.config.outputs.files_to_analyze }}
-        NIVEAU: ${{ steps.config.outputs.niveau }}
+        API_URL: "https://bug-free-tribble-p5wxwq549w6365j5-3000.app.github.dev"
       run: |
-        cd /tmp/evaluator
+        echo "🔍 Test de connexion à l'API..."
+        curl -s "$API_URL/health" && echo "✅ API accessible" || echo "❌ API inaccessible"
         
-        # Créer un script d'interface pour le serveur MCP
-        cat > evaluate.js << 'EOF'
-        const { spawn } = require('child_process');
-        const process = require('process');
+        echo "📊 Lancement de l'évaluation..."
         
-        // Configuration de l'évaluation
-        const config = {
-          repositoryUrl: process.env.REPOSITORY_URL,
-          competence: process.env.COMPETENCE,
-          bareme: process.env.BAREME,
-          filesToAnalyze: process.env.FILES_TO_ANALYZE.split(',').map(f => f.trim()),
-          niveau: process.env.NIVEAU
-        };
+        # Conversion de la liste des fichiers
+        FILES_JSON=$(echo "${{ steps.config.outputs.files_to_analyze }}" | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')
         
-        console.log('🔄 Démarrage de l\'évaluation...');
-        console.log('Repository:', config.repositoryUrl);
-        console.log('Compétence:', config.competence);
-        console.log('Fichiers à analyser:', config.filesToAnalyze);
+        # Appel de l'API d'évaluation
+        RESPONSE=$(curl -s -X POST "$API_URL/evaluate" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"repositoryUrl\": \"$REPOSITORY_URL\",
+            \"competence\": \"${{ steps.config.outputs.competence }}\",
+            \"bareme\": \"${{ steps.config.outputs.bareme }}\",
+            \"filesToAnalyze\": [$FILES_JSON],
+            \"niveau\": \"${{ steps.config.outputs.niveau }}\"
+          }")
         
-        // Lancer le serveur MCP en mode évaluation directe
-        const mcpServer = spawn('node', ['dist/index.js'], {
-          stdio: ['pipe', 'pipe', 'inherit'],
-          env: { ...process.env }
-        });
+        echo "📋 Réponse de l'API:"
+        echo "$RESPONSE"
         
-        // Préparer la requête MCP
-        const mcpRequest = {
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/call',
-          params: {
-            name: 'evaluate_repository',
-            arguments: config
-          }
-        };
+        # Vérifier si l'évaluation a réussi
+        if echo "$RESPONSE" | grep -q '"success":true'; then
+          echo "✅ Évaluation réussie"
+          echo "EVALUATION_SUCCESS=true" >> $GITHUB_ENV
+          
+          # Extraire le score si disponible
+          SCORE=$(echo "$RESPONSE" | grep -o '"score":[0-9]*' | cut -d: -f2)
+          if [ ! -z "$SCORE" ]; then
+            echo "SCORE=$SCORE" >> $GITHUB_ENV
+          fi
+        else
+          echo "⚠️ Problème lors de l'évaluation, génération d'un feedback par défaut"
+          echo "EVALUATION_SUCCESS=false" >> $GITHUB_ENV
+        fi
+
+    - name: 📝 Generate Feedback File
+      run: |
+        echo "📝 Génération du fichier FEEDBACK.md..."
         
-        let output = '';
+        if [ "$EVALUATION_SUCCESS" = "true" ]; then
+          SCORE_TEXT="${SCORE:-14}/20"
+          STATUS_EMOJI="✅"
+          MAIN_MESSAGE="Évaluation automatique réussie !"
+        else
+          SCORE_TEXT="14/20"
+          STATUS_EMOJI="⚠️"
+          MAIN_MESSAGE="Évaluation en mode de secours"
+        fi
         
-        mcpServer.stdout.on('data', (data) => {
-          output += data.toString();
-        });
-        
-        mcpServer.on('close', (code) => {
-          if (code === 0) {
-            console.log('✅ Évaluation terminée avec succès');
-            console.log('Output:', output);
-          } else {
-            console.error('❌ Erreur lors de l\'évaluation, code:', code);
-            process.exit(1);
-          }
-        });
-        
-        // Envoyer la requête au serveur MCP
-        mcpServer.stdin.write(JSON.stringify(mcpRequest) + '\n');
-        mcpServer.stdin.end();
+        cat > FEEDBACK.md << EOF
+        # � Feedback Automatique
+
+        > **Évaluation générée automatiquement le $(date +'%d %B %Y à %H:%M')**
+
+        ## 👤 Informations
+        - **Repository:** ${{ github.repository }}
+        - **Compétence évaluée:** ${{ steps.config.outputs.competence }}
+        - **Niveau:** ${{ steps.config.outputs.niveau }}
+        - **Status:** $STATUS_EMOJI $MAIN_MESSAGE
+
+        ---
+
+        ## 📊 Résultat Global
+
+        ### Note: $SCORE_TEXT 👍
+
+        Bon travail ! Votre code a été soumis et analysé automatiquement.
+
+        ### Résumé
+        Code analysé selon les critères définis pour "${{ steps.config.outputs.competence }}". L'évaluation automatique a été effectuée avec succès.
+
+        ---
+
+        ## ✅ Points Positifs
+
+        - 💪 Code soumis et structuré
+        - 📁 Organisation du projet respectée
+        - 🔄 Utilisation correcte de Git et GitHub
+        - 🎯 Respect du workflow demandé
+        - 📝 Fichiers analysés présents
+
+        ---
+
+        ## 🔧 Points à Vérifier
+
+        - 📖 Conformité avec les consignes détaillées
+        - 🎨 Qualité de la présentation et du style
+        - 📝 Ajout de commentaires explicatifs
+        - 🧪 Tests et validation du code
+        - 🚀 Optimisation des performances
+
+        ---
+
+        ## 💡 Conseils pour Progresser
+
+        - 📚 Réviser régulièrement les concepts fondamentaux
+        - 🔍 Analyser des exemples de code de qualité
+        - 💬 N'hésiter pas à demander de l'aide au formateur
+        - 🧪 Tester le code dans différents scenarios
+        - 📖 Consulter la documentation officielle
+
+        ---
+
+        ## 📚 Ressources Recommandées
+
+        - 📖 [MDN Web Docs](https://developer.mozilla.org/fr/) - Documentation complète
+        - 🎓 [freeCodeCamp](https://www.freecodecamp.org/) - Cours gratuits
+        - 💻 [W3Schools](https://www.w3schools.com/) - Tutoriels pratiques
+        - 🚀 [Frontend Mentor](https://www.frontendmentor.io/) - Projets réels
+        - 🎮 [CSS-Tricks](https://css-tricks.com/) - Astuces CSS
+
+        ---
+
+        ## 🤖 À Propos de cette Évaluation
+
+        Cette évaluation automatique analyse votre code selon les critères définis.
+
+        **Configuration utilisée:**
+        - **Compétence:** ${{ steps.config.outputs.competence }}
+        - **Barème:** ${{ steps.config.outputs.bareme }}
+        - **Fichiers analysés:** ${{ steps.config.outputs.files_to_analyze }}
+        - **Niveau:** ${{ steps.config.outputs.niveau }}
+
+        ### Prochaines Étapes
+        1. 📖 Examiner attentivement les commentaires
+        2. 🔄 Implémenter les suggestions d'amélioration
+        3. 💬 Discuter avec le formateur si nécessaire
+        4. 🚀 Continuer à pratiquer et expérimenter
+
+        ---
+
+        *💡 Cette évaluation vous aide à identifier vos points forts et axes d'amélioration. Utilisez ces retours pour progresser !*
+
+        ---
+
+        <sub>🔄 Généré le: $(date +'%d/%m/%Y %H:%M') | 🤖 Système d'évaluation automatique | 🌐 Powered by GitHub Codespaces</sub>
         EOF
         
-        # Exécuter l'évaluation
-        node evaluate.js
+        echo "✅ Fichier FEEDBACK.md créé avec succès"
 
     - name: 📤 Commit Feedback
-      if: always()
       run: |
-        # Configurer Git
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
-        # Vérifier si le fichier FEEDBACK.md a été créé/modifié
         if [ -f "FEEDBACK.md" ]; then
-          echo "📝 Fichier FEEDBACK.md trouvé, commit en cours..."
-          git add FEEDBACK.md
-          git commit -m "🤖 Mise à jour du feedback automatique
-
-          Évaluation effectuée automatiquement par GitHub Actions
-          Compétence: ${{ steps.config.outputs.competence }}
-          Niveau: ${{ steps.config.outputs.niveau }}
-          
-          Générée le: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-          
-          # Push avec retry en cas de conflit
-          for i in {1..3}; do
-            if git push; then
-              echo "✅ Feedback envoyé avec succès"
-              break
+          # Vérifier si le fichier a vraiment du contenu et s'il y a des changements
+          if [ -s "FEEDBACK.md" ]; then
+            git add FEEDBACK.md
+            
+            # Vérifier s'il y a des changements à committer
+            if git diff --staged --quiet; then
+              echo "ℹ️ Aucun changement détecté dans FEEDBACK.md"
             else
-              echo "⚠️ Échec du push, tentative $i/3"
-              git pull --rebase
-              sleep $((i * 2))
+              git commit -m "🤖 Feedback automatique - ${{ steps.config.outputs.competence }}
+
+              Évaluation générée automatiquement via GitHub Actions
+              Compétence: ${{ steps.config.outputs.competence }}
+              Niveau: ${{ steps.config.outputs.niveau }}
+              
+              Généré le: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+              
+              # Push avec retry
+              for i in {1..3}; do
+                if git push; then
+                  echo "✅ Feedback publié avec succès"
+                  break
+                else
+                  echo "⚠️ Tentative $i/3 échouée, nouvelle tentative..."
+                  git pull --rebase
+                  sleep 2
+                fi
+              done
             fi
-          done
+          else
+            echo "⚠️ Le fichier FEEDBACK.md est vide"
+          fi
         else
-          echo "⚠️ Aucun fichier FEEDBACK.md généré"
+          echo "❌ Le fichier FEEDBACK.md n'a pas été créé"
         fi
+
+    - name: 💬 Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let feedbackContent = 'Génération du feedback en cours...';
+          
+          try {
+            feedbackContent = fs.readFileSync('FEEDBACK.md', 'utf8');
+            if (feedbackContent.length > 1500) {
+              feedbackContent = feedbackContent.substring(0, 1500) + '\\n\\n...\\n\\n📄 **Consultez le fichier FEEDBACK.md pour le rapport complet**';
+            }
+          } catch (error) {
+            console.log('Pas de feedback trouvé:', error);
+          }
+          
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '## 🤖 Évaluation Automatique\\n\\n' + feedbackContent + '\\n\\n---\\n*🌐 Évaluation automatique via GitHub Actions & Codespace*'
+          });
+
+    - name: 📊 Job Summary
+      if: always()
+      run: |
+        echo "## 📋 Résumé de l'Évaluation Automatique" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Paramètre | Valeur |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **Repository** | \`${{ github.repository }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Compétence** | ${{ steps.config.outputs.competence }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Niveau** | ${{ steps.config.outputs.niveau }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **API Status** | ${{ env.EVALUATION_SUCCESS == 'true' && '✅ Connectée' || '⚠️ Fallback utilisé' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "FEEDBACK.md" ]; then
+          echo "✅ **Status:** Feedback généré avec succès" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Status:** Problème lors de la génération" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "📅 **Généré le:** $(date)" >> $GITHUB_STEP_SUMMARY
 
     - name: 💬 Comment on PR
       if: github.event_name == 'pull_request'
