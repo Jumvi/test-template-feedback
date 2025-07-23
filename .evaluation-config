@@ -1,0 +1,127 @@
+# Configuration par défaut pour l'évaluation automatique
+# Ce fichier sera utilisé si les variables GitHub ne sont pas définies
+
+# Compétence évaluée
+COMPETENCE=" developement web Dans cet exercice, vous allez recréer une maquette de site web basée sur une agence créative fictive nommée Sunnyside dont en voici la maquette Links to an external site.. L'objectif est d'améliorer vos compétences en HTML et CSS en mettant en œuvre des principes de mise en page modernes.
+
+Les ressources et images pour la composition de l'exercice sont ici. Links to an external site. 
+
+Objectif de l'exercice
+Comprendre et appliquer les styles CSS en respectant une maquette.
+Utiliser des sélecteurs CSS pour styliser des éléments spécifiques.
+Appliquer les bonnes propriétés CSS pour la mise en page et la typographie.
+Appliquer une hiérarchie visuelle cohérente.
+Respecter la typographie définie dans la maquette.
+Jouer sur les contrastes et les styles de texte pour hiérarchiser l’information.
+Respect des bonnes pratiques CSS.
+Séparer le CSS du HTML en utilisant un fichier styles.css.
+Vérifier la conformité du code via le validateur CSS et HTML du W3C."
+
+# Barème de notation avec scores maximum par composant
+BAREME="Critères	Notes	Points
+Ce critère est lié à un résultat d’apprentissage Structure et Organisation du CSS
+Organisation du fichier, utilisation des sélecteurs, variables CSS, commentaires
+3 pts
+Avancé: Excellent
+Code bien structuré, utilisation optimisée des sélecteurs et variables, bonne séparation des styles et lisibilité.
+2 pts
+Compétent: Bien
+Fichier structuré mais améliorable, quelques redondances dans les sélecteurs, manque de commentaires.
+1 pts
+Basique: À Améliorer
+Organisation confuse, sélecteurs trop longs ou redondants, peu ou pas de variables/commentaires.
+0 pts
+Débutant: Insuffisant
+Styles en vrac, sélecteurs non optimisés, conflits CSS fréquents.
+3 points
+Ce critère est lié à un résultat d’apprentissage Typographie et Couleurs
+Respect des polices, tailles, interlignes, couleurs, unités relatives
+3 pts
+Avancé: Excellent
+Respect parfait des polices, tailles, interlignes et couleurs. Utilisation cohérente des unités relatives (rem, %, em).
+2 pts
+Compétent: Bien
+Bonne utilisation mais quelques écarts mineurs. Les unités ne sont pas toujours cohérentes.
+1 pts
+Basique: À Améliorer
+Polices, tailles ou couleurs non conformes, mauvaise utilisation des unités.
+0 pts
+Débutant: Insuffisant
+Mauvaise gestion de la typographie et des couleurs, utilisation d’unités inadaptées.
+3 points
+Ce critère est lié à un résultat d’apprentissage Respect des bonnes pratiques CSS
+Code propre, classes réutilisables, pseudo-classes, séparation des styles
+3 pts
+Avancé: Excellent
+Code bien structuré et lisible, classes bien pensées et réutilisables, bonne utilisation des pseudo-classes
+2 pts
+Compétent: Bien
+Code lisible mais quelques répétitions inutiles, organisation correcte mais manque d’optimisation.
+1 pts
+Basique: À Améliorer
+Code fonctionnel mais difficile à maintenir, trop de répétitions, séparation des styles peu efficace.
+0 pts
+Débutant: Insuffisant
+Code désorganisé, difficile à lire et à modifier, utilisation incorrecte des sélecteurs.
+3 points
+Ce critère est lié à un résultat d’apprentissage Validation et Tests
+Validation W3C, compatibilité inter-navigateurs, tests sur plusieurs résolutions
+3 pts
+Avancé: Excellent
+Code validé sans erreurs par le validateur CSS W3C, testé et compatible avec plusieurs navigateurs.
+2 pts
+Compétent: Bien
+Quelques avertissements mineurs au validateur CSS, compatible avec la plupart des navigateurs.
+1 pts
+Basique: À Améliorer
+Plusieurs erreurs CSS détectées, problèmes d’affichage sur certains navigateurs.
+0 pts
+Débutant: Insuffisant
+Code non testé, nombreuses erreurs CSS, incompatibilité inter-navigateurs.
+3 points
+Total de points: 12"
+
+# Scores maximum par composant (adaptés au barème sur 12 points)
+HTML_MAX_SCORE=3   # Validation et Tests (critère 4)
+CSS_MAX_SCORE=9    # Structure(3) + Typographie(3) + Bonnes pratiques(3)
+JS_MAX_SCORE=0
+ACCESSIBILITY_MAX_SCORE=0
+TOTAL_MAX_SCORE=12  # Total selon le barème réel
+
+# Fichiers à analyser (séparés par des virgules)
+FILES_TO_ANALYZE="index.html,style.css"
+
+# Niveau des étudiants
+NIVEAU="Débutant"
+
+# Seuils de réussite adaptés au barème sur 12 points
+EXCELLENT_THRESHOLD=83  # 10/12 points (Avancé)
+GOOD_THRESHOLD=67       # 8/12 points (Compétent) 
+PASSING_THRESHOLD=50    # 6/12 points (Basique)
+
+# Configuration spécifique selon le type d'exercice
+EXERCISE_TYPE="html_css_basic"
+
+# Critères spécifiques d'évaluation
+HTML_CRITERIA="DOCTYPE,lang,title,semantic_tags,validation"
+CSS_CRITERIA="syntax,properties,responsive,organization"
+
+# Exemples de configurations pour différents exercices :
+# 
+# EXERCICE DÉBUTANT (sur 15 points) :
+# HTML_MAX_SCORE=10
+# CSS_MAX_SCORE=5
+# TOTAL_MAX_SCORE=15
+#
+# EXERCICE INTERMÉDIAIRE (sur 30 points) :
+# HTML_MAX_SCORE=12
+# CSS_MAX_SCORE=10
+# JS_MAX_SCORE=8
+# TOTAL_MAX_SCORE=30
+#
+# EXERCICE AVANCÉ (sur 50 points) :
+# HTML_MAX_SCORE=15
+# CSS_MAX_SCORE=15
+# JS_MAX_SCORE=10
+# ACCESSIBILITY_MAX_SCORE=10
+# TOTAL_MAX_SCORE=50
