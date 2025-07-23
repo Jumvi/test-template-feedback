@@ -1,4 +1,4 @@
-import { EvaluationResult } from './evaluator.js';
+import { EvaluationResult, TechnicalDetail } from './evaluator.js';
 
 export interface FeedbackRequest {
   analysis: EvaluationResult;
@@ -162,9 +162,9 @@ Cette évaluation a été générée automatiquement par notre système d'IA pé
   /**
    * Formate les détails techniques
    */
-  private formatTechnicalDetails(details: any[]): string {
+  private formatTechnicalDetails(details: TechnicalDetail[]): string {
     if (details.length === 0) {
-      return '✅ Aucun problème technique majeur détecté.';
+      return '✅ **Aucun problème technique majeur détecté !**\n\nVotre code respecte les bonnes pratiques de base. C\'est un excellent point de départ !';
     }
 
     const severityIcons = {
@@ -173,14 +173,31 @@ Cette évaluation a été générée automatiquement par notre système d'IA pé
       'info': 'ℹ️'
     };
 
-    return details.map(detail => {
-      const icon = severityIcons[detail.severity as keyof typeof severityIcons] || 'ℹ️';
-      const lineInfo = detail.line ? ` (ligne ${detail.line})` : '';
+    const groupedDetails = details.reduce((acc, detail) => {
+      if (!acc[detail.file]) acc[detail.file] = [];
+      acc[detail.file].push(detail);
+      return acc;
+    }, {} as Record<string, TechnicalDetail[]>);
+
+    let result = `J'ai analysé votre code en détail et identifié **${details.length} point(s)** spécifique(s) à améliorer :\n\n`;
+
+    Object.entries(groupedDetails).forEach(([fileName, fileDetails]) => {
+      result += `### 📄 **${fileName}**\n\n`;
       
-      return `### ${icon} ${detail.file}${lineInfo}
-**Problème:** ${detail.issue}
-**Suggestion:** ${detail.suggestion}`;
-    }).join('\n\n');
+      fileDetails.forEach((detail, index) => {
+        const icon = severityIcons[detail.severity as keyof typeof severityIcons] || 'ℹ️';
+        const lineInfo = detail.line ? ` **ligne ${detail.line}**` : '';
+        const severityText = detail.severity === 'error' ? 'Erreur' : detail.severity === 'warning' ? 'Attention' : 'Info';
+        
+        result += `**${index + 1}.** ${icon} **${severityText}**${lineInfo}\n`;
+        result += `- **Problème identifié :** ${detail.issue}\n`;
+        result += `- **Conseil d'amélioration :** ${detail.suggestion}\n\n`;
+      });
+    });
+
+    result += `> 💡 **Conseil de coach :** Ces points d'amélioration sont là pour vous faire progresser. Chaque correction est une occasion d'apprendre quelque chose de nouveau !`;
+
+    return result;
   }
 
   /**
