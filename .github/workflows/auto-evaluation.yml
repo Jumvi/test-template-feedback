@@ -36,37 +36,17 @@ jobs:
           fi
 
           # Utiliser les variables GitHub si définies, sinon utiliser le fichier config, sinon valeurs par défaut
-          COMPETENCE="${{ vars.COMPETENCE }}"
-          [ -z "$COMPETENCE" ] && COMPETENCE="${COMPETENCE:-Développement Web HTML/CSS}"
-
-          BAREME="${{ vars.BAREME }}"
-          [ -z "$BAREME" ] && BAREME="${BAREME:-Structure HTML (10pts), Style CSS (10pts)}"
-
-          FILES_TO_ANALYZE="${{ vars.FILES_TO_ANALYZE }}"
-          [ -z "$FILES_TO_ANALYZE" ] && FILES_TO_ANALYZE="${FILES_TO_ANALYZE:-index.html,style.css}"
-
-          NIVEAU="${{ vars.NIVEAU }}"
-          [ -z "$NIVEAU" ] && NIVEAU="${NIVEAU:-Débutant}"
-
-          # Chargement des scores maximum par composant
-          HTML_MAX_SCORE="${{ vars.HTML_MAX_SCORE }}"
-          [ -z "$HTML_MAX_SCORE" ] && HTML_MAX_SCORE="${HTML_MAX_SCORE:-10}"
-
-          CSS_MAX_SCORE="${{ vars.CSS_MAX_SCORE }}"
-          [ -z "$CSS_MAX_SCORE" ] && CSS_MAX_SCORE="${CSS_MAX_SCORE:-10}"
-
-          JS_MAX_SCORE="${{ vars.JS_MAX_SCORE }}"
-          [ -z "$JS_MAX_SCORE" ] && JS_MAX_SCORE="${JS_MAX_SCORE:-0}"
-
-          TOTAL_MAX_SCORE="${{ vars.TOTAL_MAX_SCORE }}"
-          [ -z "$TOTAL_MAX_SCORE" ] && TOTAL_MAX_SCORE="${TOTAL_MAX_SCORE:-20}"
-
-          # Chargement des seuils de réussite
-          EXCELLENT_THRESHOLD="${{ vars.EXCELLENT_THRESHOLD }}"
-          [ -z "$EXCELLENT_THRESHOLD" ] && EXCELLENT_THRESHOLD="${EXCELLENT_THRESHOLD:-80}"
-
-          GOOD_THRESHOLD="${{ vars.GOOD_THRESHOLD }}"
-          [ -z "$GOOD_THRESHOLD" ] && GOOD_THRESHOLD="${GOOD_THRESHOLD:-60}"
+          # Valeurs par défaut pour toutes les variables
+          COMPETENCE="Développement Web HTML/CSS"
+          BAREME="Structure HTML (10pts), Style CSS (10pts)"
+          FILES_TO_ANALYZE="index.html,style.css"
+          NIVEAU="Débutant"
+          HTML_MAX_SCORE="10"
+          CSS_MAX_SCORE="10"
+          JS_MAX_SCORE="0"
+          TOTAL_MAX_SCORE="20"
+          EXCELLENT_THRESHOLD="18"
+          GOOD_THRESHOLD="15"
 
           echo "competence=$COMPETENCE" >> $GITHUB_OUTPUT
           echo "bareme=$BAREME" >> $GITHUB_OUTPUT
@@ -94,7 +74,7 @@ jobs:
           REPOSITORY_URL="https://github.com/${{ github.repository }}"
           
           # Appel à l'API d'évaluation Codespace
-          EVALUATION_RESPONSE=$(curl -s -X POST "https://bug-free-tribble-p5wxwq549w6365j5-3000.app.github.dev/evaluate" \
+          EVALUATION_RESPONSE=$(curl -s -X POST "https://test-template-feedback-xqok-dlchqyk80-jumvis-projects.vercel.app/evaluate" \
             -H "Content-Type: application/json" \
             -d "{
               \"repositoryUrl\": \"$REPOSITORY_URL\",
