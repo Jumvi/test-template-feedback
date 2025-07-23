@@ -10,7 +10,7 @@ body {
     line-height: 1.6;
     color: #333;
     background-color: #f8f9fa;
-    width: 150%;
+    width: 250%;  /* ERREUR CRITIQUE: Largeur encore plus excessive */
 }
 
 .container {
@@ -24,11 +24,11 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 1rem 0;
-    position: stick;
+    position: stick  /* ERREUR: "stick" au lieu de "sticky" */
     top: 0;
     z-index: 100;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    height: 200px
+    height: 400px  /* ERREUR: Point-virgule manquant + hauteur excessive */
 }
 
 .navigation {
@@ -97,9 +97,10 @@ body {
     font-size: 1.1rem;
     font-weight: bold;
     border-radius: 30px;
-    cursor: pointer
+    cursor: pointer  /* ERREUR: Point-virgule manquant */
     transition: all 0.3s ease;
     box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+    margin-left: -9999px  /* ERREUR CRITIQUE: Élément hors écran */
 }
 
 .cta-button:hover {
