@@ -178,6 +178,7 @@ app.post('/evaluate', async (req, res) => {
         niveau,
         score: analysis.score,
         summary: analysis.summary,
+        analysis: analysis, // Inclure l'analyse complète
         feedbackCreated: true
       }
     });

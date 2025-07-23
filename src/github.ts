@@ -86,15 +86,44 @@ export class GitHubService {
    */
   async cloneAndAnalyze(repositoryUrl: string, filesToAnalyze: string[]): Promise<RepositoryData> {
     if (this.testMode) {
-      console.log("📋 Mode test : génération de données de repository fictives");
+      console.log("📋 Mode test : lecture des fichiers locaux du projet");
+      
+      const files: RepositoryFile[] = [];
+      
+      // Lire les fichiers locaux du projet
+      for (const filePath of filesToAnalyze) {
+        try {
+          const fullPath = path.join(process.cwd(), filePath);
+          if (fs.existsSync(fullPath)) {
+            const content = fs.readFileSync(fullPath, 'utf-8');
+            files.push({
+              path: filePath,
+              content: content,
+              size: content.length
+            });
+            console.log(`✅ Fichier local lu: ${filePath} (${content.length} caractères)`);
+          } else {
+            console.log(`⚠️ Fichier non trouvé: ${filePath}, utilisation de contenu de test`);
+            files.push({
+              path: filePath,
+              content: this.generateTestContent(filePath),
+              size: 500
+            });
+          }
+        } catch (error) {
+          console.error(`❌ Erreur lecture ${filePath}:`, error);
+          files.push({
+            path: filePath,
+            content: this.generateTestContent(filePath),
+            size: 500
+          });
+        }
+      }
+      
       return {
-        files: filesToAnalyze.map(path => ({
-          path,
-          content: this.generateTestContent(path),
-          size: 500
-        })),
-        studentName: 'test-student',
-        repositoryName: 'test-repo'
+        files,
+        studentName: 'test-student-local',
+        repositoryName: repositoryUrl.split('/').pop() || 'test-repo'
       };
     }
 

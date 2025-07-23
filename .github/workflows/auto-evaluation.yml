@@ -85,6 +85,40 @@ jobs:
           echo "- Fichiers: $FILES_TO_ANALYZE"
           echo "- Niveau: $NIVEAU"
 
+      - name: 🤖 Évaluation IA Avancée
+        id: ai_evaluation
+        run: |
+          echo "🤖 Appel à l'API d'évaluation intelligente..."
+          
+          # Construction de la payload JSON
+          REPOSITORY_URL="https://github.com/${{ github.repository }}"
+          
+          # Appel à l'API d'évaluation Codespace
+          EVALUATION_RESPONSE=$(curl -s -X POST "https://bug-free-tribble-p5wxwq549w6365j5-3000.app.github.dev/evaluate" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"repositoryUrl\": \"$REPOSITORY_URL\",
+              \"competence\": \"${{ steps.config.outputs.competence }}\",
+              \"bareme\": \"${{ steps.config.outputs.bareme }}\",
+              \"niveau\": \"debutant\",
+              \"filesToAnalyze\": [\"index.html\", \"style.css\", \"script.js\"]
+            }" 2>/dev/null || echo "{\"error\":\"API indisponible\"}")
+          
+          echo "📊 Réponse de l'API: $EVALUATION_RESPONSE"
+          
+          # Vérifier si l'API a répondu correctement
+          if echo "$EVALUATION_RESPONSE" | grep -q "\"score\""; then
+            echo "✅ Évaluation IA réussie"
+            echo "ai_available=true" >> $GITHUB_OUTPUT
+            echo "ai_response<<EOF" >> $GITHUB_OUTPUT
+            echo "$EVALUATION_RESPONSE" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ API d'évaluation indisponible, utilisation du fallback"
+            echo "ai_available=false" >> $GITHUB_OUTPUT
+            echo "ai_response={\"error\":\"API indisponible\"}" >> $GITHUB_OUTPUT
+          fi
+
       - name: 🔍 Validation HTML avec W3C
         id: html_validation
         run: |
@@ -346,7 +380,7 @@ jobs:
           echo "   - Bonnes Pratiques: $PRACTICES_SCORE/3"
           echo "   - Score CSS Total: $CSS_TOTAL_SCORE/9"
 
-      - name: 📝 Génération du Feedback Technique
+      - name: 📝 Génération du Feedback Intelligent
         id: generate_feedback
         env:
           HTML_SCORE: ${{ steps.html_validation.outputs.HTML_SCORE }}
@@ -368,6 +402,9 @@ jobs:
           TYPOGRAPHY_SCORE: ${{ steps.css_validation.outputs.TYPOGRAPHY_SCORE }}
           PRACTICES_SCORE: ${{ steps.css_validation.outputs.PRACTICES_SCORE }}
           NIVEAU: ${{ steps.config.outputs.niveau }}
+          # Variables de l'évaluation IA
+          AI_AVAILABLE: ${{ steps.ai_evaluation.outputs.ai_available }}
+          AI_RESPONSE: ${{ steps.ai_evaluation.outputs.ai_response }}
         run: |
           echo "📝 Génération du feedback technique détaillé..."
 

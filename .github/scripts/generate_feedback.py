@@ -3,10 +3,172 @@
 
 import os
 import sys
+import json
 from datetime import datetime
 
+def generate_ai_feedback():
+    """Génère le feedback à partir de l'évaluation IA avancée"""
+    ai_available = os.environ.get('AI_AVAILABLE', 'false').lower() == 'true'
+    ai_response = os.environ.get('AI_RESPONSE', '{}')
+    
+    if not ai_available:
+        return None
+    
+    try:
+        ai_data = json.loads(ai_response)
+        if 'error' in ai_data:
+            return None
+            
+        repository = os.environ.get('REPOSITORY', 'repository')
+        competence = os.environ.get('COMPETENCE', 'Développement Web HTML/CSS')
+        niveau = os.environ.get('NIVEAU', 'Débutant')
+        
+        timestamp = datetime.now().strftime("%d/%m/%Y à %H:%M")
+        
+        # Génération du feedback avec les données IA
+        feedback = f"""# 📝 Feedback Automatique Avancé
+
+> **Évaluation générée automatiquement le {timestamp}**
+
+## 👤 Informations
+- **Repository:** {repository}
+- **Compétence évaluée:** {competence}
+- **Niveau:** {niveau}
+- **Status:** ✅ Évaluation IA avancée
+
+---
+
+## 📊 Résultat Global
+
+### Note: {ai_data.get('score', 0)}/20 {get_score_emoji(ai_data.get('score', 0))}
+
+{ai_data.get('summary', 'Évaluation effectuée avec succès.')}
+
+---
+
+## ✅ Points Forts
+
+"""
+        
+        strengths = ai_data.get('strengths', [])
+        if strengths:
+            for strength in strengths:
+                feedback += f"- {strength}\n"
+        else:
+            feedback += "- 💪 Continue tes efforts, tu es sur la bonne voie !\n"
+        
+        feedback += "\n---\n\n## 🔧 Axes d'Amélioration\n\n"
+        
+        improvements = ai_data.get('improvements', [])
+        if improvements:
+            for improvement in improvements:
+                feedback += f"- {improvement}\n"
+        else:
+            feedback += "- ✨ Excellent travail, peu d'améliorations nécessaires !\n"
+        
+        feedback += "\n---\n\n## 🔍 Détails Techniques\n\n"
+        
+        technical_details = ai_data.get('technicalDetails', [])
+        if technical_details:
+            feedback += f"J'ai analysé votre code en détail et identifié **{len(technical_details)} point(s)** spécifique(s) à améliorer :\n\n"
+            
+            # Grouper par fichier
+            files_details = {}
+            for detail in technical_details:
+                file_name = detail.get('file', 'Fichier inconnu')
+                if file_name not in files_details:
+                    files_details[file_name] = []
+                files_details[file_name].append(detail)
+            
+            for file_name, details in files_details.items():
+                feedback += f"### 📄 **{file_name}**\n\n"
+                
+                for i, detail in enumerate(details, 1):
+                    severity_icons = {'error': '🚫', 'warning': '⚠️', 'info': 'ℹ️'}
+                    icon = severity_icons.get(detail.get('severity', 'info'), 'ℹ️')
+                    line_info = f" **ligne {detail['line']}**" if detail.get('line') else ''
+                    severity_text = {'error': 'Erreur', 'warning': 'Attention', 'info': 'Info'}.get(detail.get('severity', 'info'), 'Info')
+                    
+                    feedback += f"**{i}.** {icon} **{severity_text}**{line_info}\n"
+                    feedback += f"- **Problème identifié :** {detail.get('issue', 'Non spécifié')}\n"
+                    feedback += f"- **Conseil d'amélioration :** {detail.get('suggestion', 'Voir la documentation')}\n\n"
+            
+            feedback += "> 💡 **Conseil de coach :** Ces points d'amélioration sont là pour vous faire progresser. Chaque correction est une occasion d'apprendre quelque chose de nouveau !\n"
+        else:
+            feedback += "✅ **Aucun problème technique majeur détecté !**\n\nVotre code respecte les bonnes pratiques de base. C'est un excellent point de départ !\n"
+        
+        feedback += "\n---\n\n## 💡 Recommandations pour Progresser\n\n"
+        
+        recommendations = ai_data.get('recommendations', [])
+        if recommendations:
+            for rec in recommendations:
+                feedback += f"- {rec}\n"
+        else:
+            feedback += "- 📚 Continuer à pratiquer régulièrement\n- 💬 N'hésiter pas à demander de l'aide\n"
+        
+        feedback += f"""
+
+---
+
+## 📚 Ressources Utiles
+
+- 📖 [MDN Web Docs](https://developer.mozilla.org/fr/) - Documentation complète HTML/CSS/JS
+- 🎓 [freeCodeCamp](https://www.freecodecamp.org/) - Cours gratuits et exercices
+- 💻 [W3Schools](https://www.w3schools.com/) - Tutoriels et références
+- 🔧 [Can I Use](https://caniuse.com/) - Compatibilité des propriétés CSS
+- 🎨 [CSS-Tricks](https://css-tricks.com/) - Astuces et techniques CSS
+
+---
+
+## 🤖 À Propos de cette Évaluation
+
+Cette évaluation a été générée par notre système d'IA pédagogique avancé qui analyse votre code ligne par ligne selon les critères définis pour la compétence "{competence}".
+
+### Prochaines Étapes
+1. 📖 Lisez attentivement les détails techniques ci-dessus
+2. 🔄 Corrigez les erreurs identifiées une par une
+3. 💬 Demandez de l'aide à votre formateur si nécessaire
+4. 🚀 Committez vos corrections et relancez l'évaluation
+
+---
+
+*💡 Cette évaluation personnalisée montre que j'ai vraiment analysé votre code. Chaque conseil est spécifique à votre travail !*
+
+---
+
+<sub>🔄 Généré le: {timestamp} | 🤖 Évaluation IA avancée | 🌐 Powered by GitHub Codespaces</sub>
+"""
+        
+        return feedback
+        
+    except json.JSONDecodeError:
+        return None
+
+def get_score_emoji(score):
+    """Retourne un emoji selon le score"""
+    if score >= 18:
+        return '🏆'
+    elif score >= 15:
+        return '🥉'
+    elif score >= 12:
+        return '👍'
+    elif score >= 10:
+        return '📈'
+    else:
+        return '💪'
+
 def main():
-    # Récupérer les variables d'environnement de base
+    # Essayer d'abord l'évaluation IA avancée
+    ai_feedback = generate_ai_feedback()
+    if ai_feedback:
+        print("✅ Utilisation de l'évaluation IA avancée")
+        with open('FEEDBACK.md', 'w', encoding='utf-8') as f:
+            f.write(ai_feedback)
+        return
+    
+    print("⚠️ Fallback vers l'évaluation basique")
+    
+    # Code de fallback original
     html_score = os.environ.get('HTML_SCORE', '0')
     css_score = os.environ.get('CSS_SCORE', '0')
     error_count = os.environ.get('ERROR_COUNT', '0')
